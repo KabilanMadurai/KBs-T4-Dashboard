@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>T4 Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spin-slow {
+      animation: spin-slow 20s linear infinite;
+    }
+  </style>
+  <script>
+    const timeZones = [
+      { label: 'SGT', zone: 'Asia/Singapore' },
+      { label: 'IST', zone: 'Asia/Kolkata' },
+      { label: 'BST', zone: 'Europe/London' },
+      { label: 'UTC', zone: 'UTC' },
+      { label: 'EST', zone: 'America/New_York' }
+    ];
+
+    const dstZones = ['America/New_York', 'Europe/London'];
+    let is24Hour = true;
+
+    function isCurrentlyDST(zone) {
+      const jan = new Date(Date.UTC(new Date().getFullYear(), 0, 1));
+      const now = new Date();
+      const stdOffset = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' }).formatToParts(jan).find(part => part.type === 'timeZoneName').value;
+      const currentOffset = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' }).formatToParts(now).find(part => part.type === 'timeZoneName').value;
+      return stdOffset !== currentOffset;
+    }
+
+    function formatTimeByZone(date, zone) {
+      const options = {
+        timeZone: zone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: !is24Hour
+      };
+      return new Intl.DateTimeFormat("en-US", options).format(date);
+    }
+
+    function updateLiveTable() {
+      const output = document.getElementById("liveRows");
+      output.innerHTML = "";
+      const now = new Date();
+
+      timeZones.forEach(({ label, zone }) => {
+        const timeStr = formatTimeByZone(now, zone);
+        const isDST = dstZones.includes(zone) && isCurrentlyDST(zone);
+        const labelText = isDST ? `${label} *` : label;
+        output.innerHTML += `
+          <div class="flex justify-between w-full px-2 py-1 font-medium text-sm border-b border-gray-200">
+            <span>${labelText}</span>
+            <span>${timeStr}</span>
+          </div>
+        `;
+      });
+    }
+
+    function convertDynamicTime() {
+      const inputTime = document.getElementById("inputTime").value;
+      const inputZone = document.getElementById("inputZone").value;
+      if (!inputTime || !inputZone) return;
+
+      const [hours, minutes] = inputTime.split(":" ).map(Number);
+      const inputDate = new Date();
+      inputDate.setHours(hours);
+      inputDate.setMinutes(minutes);
+
+      const inputLocaleString = inputDate.toLocaleString("en-US", { timeZone: inputZone });
+      const localTime = new Date(inputLocaleString);
+      const utcTimestamp = inputDate.getTime() - (localTime.getTime() - inputDate.getTime());
+      const utcDate = new Date(utcTimestamp);
+
+      updateConvertedTable(utcDate);
+    }
+
+    function updateConvertedTable(baseUTC) {
+      const output = document.getElementById("convertedRows");
+      output.innerHTML = "";
+
+      timeZones.forEach(({ label, zone }) => {
+        const timeStr = formatTimeByZone(baseUTC, zone);
+        const isDST = dstZones.includes(zone) && isCurrentlyDST(zone);
+        const labelText = isDST ? `${label} *` : label;
+        output.innerHTML += `
+          <div class="flex justify-between w-full px-2 py-1 font-medium text-sm border-b border-gray-200">
+            <span>${labelText}</span>
+            <span>${timeStr}</span>
+          </div>
+        `;
+      });
+    }
+
+    function toggleTimeFormat() {
+      is24Hour = !is24Hour;
+      updateLiveTable();
+      convertDynamicTime();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateLiveTable();
+      setInterval(updateLiveTable, 1000);
+    });
+  </script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-black text-white font-sans min-h-screen flex flex-col justify-center items-center transition-all duration-500">
+  <div class="bg-white text-gray-900 p-6 rounded-3xl shadow-2xl w-full max-w-md text-center border border-gray-300">
+    <div class="flex items-center justify-center gap-2 mb-4">
+      <h2 class="text-2xl font-extrabold text-rose-600 tracking-wide animate-pulse">T4 Dashboard</h2>
+    </div>
+
+    <p class="text-xs text-center text-gray-500 mt-1 mb-3 italic">-.- .- -... .. .-.. .- -. ... / - .. -- . / --.. --- -. . / -.-. --- -. ...- . .-. - . .-. / .-- .. - .... / .-.. .. ...- . / - .. -- .</p>
+
+    <div class="border border-pink-300 rounded-xl p-4 mb-6 bg-pink-50">
+      <h3 class="text-base font-bold text-pink-700 mb-1">Time Zones</h3>
+      <h4 class="text-xs font-semibold text-gray-600 mb-3">Live Time</h4>
+      <div id="liveRows"></div>
+    </div>
+
+    <div class="flex flex-col gap-3 items-center mb-4">
+      <input type="time" id="inputTime" class="border px-3 py-1 rounded bg-gray-100 text-black shadow text-sm w-full">
+      <select id="inputZone" class="border px-3 py-1 rounded text-black shadow text-sm w-full">
+        <option value="Asia/Singapore">SGT</option>
+        <option value="Asia/Kolkata">IST</option>
+        <option value="Europe/London">BST</option>
+        <option value="UTC">UTC</option>
+        <option value="America/New_York">EST</option>
+      </select>
+      <div class="flex gap-2 w-full">
+        <button onclick="toggleTimeFormat()" class="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-xl text-xs uppercase shadow">24H/12H</button>
+        <button onclick="convertDynamicTime()" class="flex-1 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs uppercase shadow">Convert</button>
+      </div>
+    </div>
+
+    <div class="border border-rose-300 rounded-xl p-4 bg-rose-50">
+      <div class="mb-2">
+        <h3 class="text-base font-bold text-rose-700">Converted Time</h3>
+      </div>
+      <div id="convertedRows"></div>
+    </div>
+
+    <p class="text-[10px] text-gray-500 mt-4 italic">* Indicates that the time zone is currently observing Daylight Saving Time (DST)</p>
+
+    <p class="text-[10px] text-gray-400 mt-2">Developed by <a href="https://www.linkedin.com/in/kabilan-b-9939ab257" target="_blank" class="text-blue-600 hover:underline">Kabilan</a></p>
+  </div>
+</body>
+</html>
